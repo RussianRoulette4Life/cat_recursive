@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+cat_r() {
+	#настраиваем дефолтные значения
+	output_stream="/dev/stdout"
+	grepper=""
+	curr_dir=$(pwd)
+	while getopts "d:g:w:h" FLAG; do
+		case $FLAG in
+			"d") 
+				if [[ $OPTARG == "." ]]; then
+					curr_dir=$(pwd)
+				else
+					curr_dir=$OPTARG
+				fi
+				echo -e "Ищу в \e[32;49m$curr_dir\e[0m"
+				;;
+			"g")
+				echo -e "Буду искать \e[35;49m$OPTARG\e[0m"
+				grepper=$OPTARG
+				;;
+			"w")
+				echo "Путь $OPTARG: абсолютный (absolute) или относительный (relative)? [_a_bsolute/_r_elative]"
+				read ans
+				case $ans in
+					"a")
+						output_stream=$OPTARG
+						;;
+					"r")
+						output_stream="$(pwd)/$OPTARG"
+						;;
+					*)
+						echo "чё"
+						exit 127
+						;;
+				esac
+				;;
+			"h")
+				echo -e "\e[30;47mcat_r\e[0m -d <ДИРЕКТОРИЯ> -g <ЧТО_ИСКАТЬ> -w <КУДА_ЗАПИСАТЬ>"
+				echo -e "\t- Выписывает всё содержимое текстовых файлов из <ДИРЕКТОРИЯ> и субдиректорий (по дефолту: pwd)"
+				echo -e "\t- Ищет <ЧТО_ИСКАТЬ> (по дефолту: ничего)"
+				echo -e "\t- Выписывает \"находки\" в <КУДА_ЗАПИСАТЬ> (по дефолту: /dev/stdout)"
+				exit 0
+				;;
+		esac
+	done
+	if [[ $output_stream != "/dev/stdout" && -f $output_stream ]]; then
+		echo "$output_stream существует! Удалить? Иначе результат поиска будет ДОБАВЛЕН в конце файла. [y/n]"
+		read opt
+		case $opt in
+			"y")
+				rm $output_stream
+				;;
+			"n")
+				echo "Оставляем $output_stream"
+				;;
+			*)
+				echo "не ругайся"
+				exit 127
+				;;
+		esac
+	fi
+	
+	if [[ ! -f $output_stream ]]; then
+		touch $output_stream
+	fi
+
+	for line in $(ls -Ra $curr_dir); do
+		if [[ $line == *":" ]]; then
+			# ЧТО
+			dir_path="${line//:/}"
+			if [[ -d $dir_path ]]; then
+				cd $dir_path
+				for file in $(ls $dir_path); do
+					# придумано во сне
+					if [[ -f $file && ( $(file $file) == *"ASCII"* || $(file $file) == *"UTF-"* ) ]]; then
+						if [[ $grepper == "" ]]; then
+
+							if [[ $output_stream == "/dev/stdout" ]]; then
+								echo -e "\n\e[0;33m-----$(realpath $file)-----\e[0m\n"
+							else
+								echo -e "\n-----$(realpath $file)-----\n" >> $output_stream
+							fi
+							cat $file >> $output_stream
+
+						else
+							grep_out=$(cat $file | grep -n "$grepper")
+
+							if [[ $grep_out != "" ]]; then
+								if [[ $output_stream == "/dev/stdout" ]]; then
+									echo -e "\n\e[0;33m-----$(realpath $file)-----\e[0m\n"
+								else
+									echo -e "\n-----$(realpath $file)-----\n" >> $output_stream
+								fi
+								echo $grep_out >> $output_stream
+
+							fi
+						fi
+					fi
+				done
+			fi
+		fi
+	done
+	echo -en "\a"
+	if [[ $output_stream != "/dev/stdout" ]]; then
+		less $output_stream
+	fi
+}
+
+cat_r $@
