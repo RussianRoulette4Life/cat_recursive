@@ -108,7 +108,7 @@ cat_r() {
 			fi
 		fi
 	done
-	echo -en "\a"
+	notify-send -a "cat_r" "закончил!"
 	if [[ $output_stream != "/dev/stdout" ]]; then
 		less $output_stream
 	fi
