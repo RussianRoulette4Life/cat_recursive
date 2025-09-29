@@ -12,11 +12,17 @@ cat_r -h
 - Ну мне уже разок помогло
 
 ## Установка
-Перекиньте скрипт `cat_r` в `~/.local/bin`, потом, если `~/.local/bin` не в `$PATH`:
+
+Команды для установки:
+
 ```bash
-echo "PATH=$PATH:$HOME/.local/bin" >> ~/.bashrc
+git clone https://github.com/RussianRoulette4Life/cat_recursive
+cd cat_recursive
+mkdir ~/.local/bin
+cp cat_r ~/.local/bin/cat_r
+chmod +x ~/.local/bin/cat_r
+echo "PATH=$PATH:$HOME/.local/bin"
 ```
-или `~/.zshrc` при использовании ZSH
 
 ---
 Отдельное спасибо дешёвому радио с 3.5мм джэком. Просто.
