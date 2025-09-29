@@ -4,7 +4,8 @@ cat_r() {
 	output_stream="/dev/stdout"
 	grepper=""
 	curr_dir=$(pwd)
-	while getopts "d:g:w:h" FLAG; do
+	ls_flags="-R"
+	while getopts "d:g:w:ah" FLAG; do
 		case $FLAG in
 			"d") 
 				if [[ $OPTARG == "." ]]; then
@@ -34,11 +35,17 @@ cat_r() {
 						;;
 				esac
 				;;
+			"a")
+				echo -e "Включаю \e[31;49mскрытые директории\e[0m в поиск."
+				ls_flags="$ls_flags -a"
+				;;
 			"h")
-				echo -e "\e[30;47mcat_r\e[0m -d <ДИРЕКТОРИЯ> -g <ЧТО_ИСКАТЬ> -w <КУДА_ЗАПИСАТЬ>"
-				echo -e "\t- Выписывает всё содержимое текстовых файлов из <ДИРЕКТОРИЯ> и субдиректорий (по дефолту: pwd)"
+				echo -e "\e[30;47mcat_r\e[0m -d <ДИРЕКТОРИЯ> -g <ЧТО_ИСКАТЬ> -w <КУДА_ЗАПИСАТЬ> -a"
+				echo -e "\t- Выписывает всё содержимое текстовых файлов из <ДИРЕКТОРИЯ> и поддиректорий (по дефолту: pwd)"
 				echo -e "\t- Ищет <ЧТО_ИСКАТЬ> (по дефолту: ничего)"
 				echo -e "\t- Выписывает \"находки\" в <КУДА_ЗАПИСАТЬ> (по дефолту: /dev/stdout)"
+				echo -e "\t- Может искать в скрытых директориях через -a (по дефолту: не ищет)"
+
 				exit 0
 				;;
 		esac
@@ -49,6 +56,7 @@ cat_r() {
 		case $opt in
 			"y")
 				rm $output_stream
+				touch $output_stream
 				;;
 			"n")
 				echo "Оставляем $output_stream"
@@ -59,12 +67,12 @@ cat_r() {
 				;;
 		esac
 	fi
-	
+
 	if [[ ! -f $output_stream ]]; then
 		touch $output_stream
 	fi
 
-	for line in $(ls -Ra $curr_dir); do
+	for line in $(ls $ls_flags $curr_dir); do
 		if [[ $line == *":" ]]; then
 			# ЧТО
 			dir_path="${line//:/}"
@@ -72,7 +80,7 @@ cat_r() {
 				cd $dir_path
 				for file in $(ls $dir_path); do
 					# придумано во сне
-					if [[ -f $file && ( $(file $file) == *"ASCII"* || $(file $file) == *"UTF-"* ) ]]; then
+					if [[ (-f $file && ( $(file $file) == *"ASCII"* || $(file $file) == *"UTF-"* )) && $(realpath $file) != $output_stream ]]; then
 						if [[ $grepper == "" ]]; then
 
 							if [[ $output_stream == "/dev/stdout" ]]; then
@@ -80,10 +88,10 @@ cat_r() {
 							else
 								echo -e "\n-----$(realpath $file)-----\n" >> $output_stream
 							fi
-							cat $file >> $output_stream
+							cat "$file" >> $output_stream
 
 						else
-							grep_out=$(cat $file | grep -n "$grepper")
+							grep_out=$(cat "$file" | grep -n "$grepper")
 
 							if [[ $grep_out != "" ]]; then
 								if [[ $output_stream == "/dev/stdout" ]]; then
@@ -91,7 +99,7 @@ cat_r() {
 								else
 									echo -e "\n-----$(realpath $file)-----\n" >> $output_stream
 								fi
-								echo $grep_out >> $output_stream
+								echo "$grep_out" >> $output_stream
 
 							fi
 						fi
