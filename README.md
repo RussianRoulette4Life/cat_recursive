@@ -12,7 +12,7 @@ cat_r -h
 - Ну мне уже разок помогло
 
 ## Установка
-Перекиньте скрипт `cat_r` в `~/.local/bin`, потом, если `~/local/.bin` не в `$PATH`:
+Перекиньте скрипт `cat_r` в `~/.local/bin`, потом, если `~/.local/bin` не в `$PATH`:
 ```bash
 echo "PATH=$PATH:$HOME/.local/bin" >> ~/.bashrc
 ```
