@@ -87,6 +87,7 @@ cat_r() {
 	esac
 
 	notify-send -a "cat_r" "закончил!"
+	echo -en "\a"
 	if [[ $output_stream != "/dev/stdout" ]]; then
 		less $output_stream
 	fi
@@ -98,7 +99,6 @@ nc_iter() {
 	local ls_flags=$2
 	local grepper=$3
 	local output_stream=$4
-	echo "$grepper"
 	for line in $(ls $ls_flags $curr_dir); do
 		if [[ $line == *":" ]]; then
 			# ЧТО
@@ -156,7 +156,13 @@ c_iter() {
 				for file in $(ls $dir_path); do
 					# придумано во сне (в этот раз grepper не юзаем для отсекания, cache_file содержит ВСЁ содержимое текстовых файлов)
 					if [[ (-f $file && ( $(file $file) == *"ASCII"* || $(file $file) == *"UTF-"* )) && $(realpath $file) != $output_stream ]]; then
-						echo -e "\n-----$(realpath $file)-----\n" >> "$output_stream"
+						echo -e "\n-----$(realpath $file)-----" >> "$output_stream"
+#						PREV_IFS=$IFS
+#						IFS=$'\n'
+#						for line in $(cat -n "$file"); do
+#							echo "[$(realpath $file)]: ${line//\ /}" >> "$output_stream"
+#						done
+#						IFS=$PREV_IFS
 						cat "$file" >> "$output_stream"
 					fi
 				done
@@ -165,16 +171,18 @@ c_iter() {
 	done
 	fi
 	# после создания кэш-файла начинаем перебирать его
-	for line in "$(cat $cache_file)"; do
-		if [[ $line == "-----"* ]]; then
-			local DIR_STRING = $line
+	PREV_IFS=$IFS
+	IFS=$'\n'
+	echo "les go"
+	for line in $(cat "$cache_file"); do
+		if [[ "$line" == "-----"* ]]; then
+			echo "$line" >> "$where_to_write"
 		fi
-		local grep_out=$(echo "$line" | grep "$grepper")
-		if [[ $grep_out != "" ]]; then
-			echo "$DIR_STRING" >> "$where_to_write"
-			echo "$grep_out" >> "$where_to_write"
+		if [[ "$line" == *"$grepper"* ]]; then
+			echo "$line" >> "$where_to_write"
 		fi
 	done
 	echo "Считывал с кэша..."
+	IFS=$PREV_IFS
 }
 cat_r $@
