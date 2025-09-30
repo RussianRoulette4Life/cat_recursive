@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 cat_r() {
 	#настраиваем дефолтные значения
-	output_stream="/dev/stdout"
-	grepper=""
 	curr_dir=$(pwd)
 	ls_flags="-R"
-	while getopts "d:g:w:ah" FLAG; do
+	grepper=""
+	output_stream="/dev/stdout"
+	cache="n"
+	while getopts "d:g:w:ach" FLAG; do
 		case $FLAG in
 			"d") 
 				if [[ $OPTARG == "." ]]; then
@@ -13,10 +14,10 @@ cat_r() {
 				else
 					curr_dir=$OPTARG
 				fi
-				echo -e "Ищу в \e[32;49m$curr_dir\e[0m"
+				echo -e "Ищу в \e[32;49m$curr_dir\e[0m."
 				;;
 			"g")
-				echo -e "Буду искать \e[35;49m$OPTARG\e[0m"
+				echo -e "Буду искать \e[35;49m$OPTARG\e[0m."
 				grepper=$OPTARG
 				;;
 			"w")
@@ -38,6 +39,10 @@ cat_r() {
 			"a")
 				echo -e "Включаю \e[31;49mскрытые директории\e[0m в поиск."
 				ls_flags="$ls_flags -a"
+				;;
+			"c")
+				echo -e "Включаю \e[33;49;3mкэширование\e[0m вывода."
+				cache="y"
 				;;
 			"h")
 				echo -e "\e[30;47mcat_r\e[0m -d <ДИРЕКТОРИЯ> -g <ЧТО_ИСКАТЬ> -w <КУДА_ЗАПИСАТЬ> -a"
@@ -72,6 +77,28 @@ cat_r() {
 		touch $output_stream
 	fi
 
+	case $cache in
+		"y")
+			c_iter "$curr_dir" "$ls_flags" "$grepper" "$output_stream"
+			;;
+		"n")
+			nc_iter "$curr_dir" "$ls_flags" "$grepper" "$output_stream"
+			;;
+	esac
+
+	notify-send -a "cat_r" "закончил!"
+	if [[ $output_stream != "/dev/stdout" ]]; then
+		less $output_stream
+	fi
+}
+
+# последовательно: директория, флаги ЛС, что ищем, куда выводим
+nc_iter() {
+	local curr_dir=$1
+	local ls_flags=$2
+	local grepper=$3
+	local output_stream=$4
+	echo "$grepper"
 	for line in $(ls $ls_flags $curr_dir); do
 		if [[ $line == *":" ]]; then
 			# ЧТО
@@ -86,9 +113,9 @@ cat_r() {
 							if [[ $output_stream == "/dev/stdout" ]]; then
 								echo -e "\n\e[0;33m-----$(realpath $file)-----\e[0m\n"
 							else
-								echo -e "\n-----$(realpath $file)-----\n" >> $output_stream
+								echo -e "\n-----$(realpath $file)-----\n" >> "$output_stream"
 							fi
-							cat "$file" >> $output_stream
+							cat "$file" >> "$output_stream"
 
 						else
 							grep_out=$(cat "$file" | grep -n "$grepper")
@@ -97,9 +124,9 @@ cat_r() {
 								if [[ $output_stream == "/dev/stdout" ]]; then
 									echo -e "\n\e[0;33m-----$(realpath $file)-----\e[0m\n"
 								else
-									echo -e "\n-----$(realpath $file)-----\n" >> $output_stream
+									echo -e "\n-----$(realpath $file)-----\n" >> "$output_stream"
 								fi
-								echo "$grep_out" >> $output_stream
+								echo "$grep_out" >> "$output_stream"
 
 							fi
 						fi
@@ -108,10 +135,46 @@ cat_r() {
 			fi
 		fi
 	done
-	notify-send -a "cat_r" "закончил!"
-	if [[ $output_stream != "/dev/stdout" ]]; then
-		less $output_stream
-	fi
 }
 
+#арги схожи с nc_iter
+c_iter() {
+	local curr_dir=$1
+	local ls_flags=$2
+	local grepper=$3
+	local where_to_write=$4
+	local cache_file="$(pwd)/cachefile"
+	local output_stream=$cache_file
+	if [[ -f "$cache_file" ]]; then echo "Кэш существует, считываю его..."; else
+	touch "$cache_file"
+	for line in $(ls $ls_flags $curr_dir); do
+		if [[ $line == *":" ]]; then
+			# ЧТО
+			dir_path="${line//:/}"
+			if [[ -d $dir_path ]]; then
+				cd $dir_path
+				for file in $(ls $dir_path); do
+					# придумано во сне (в этот раз grepper не юзаем для отсекания, cache_file содержит ВСЁ содержимое текстовых файлов)
+					if [[ (-f $file && ( $(file $file) == *"ASCII"* || $(file $file) == *"UTF-"* )) && $(realpath $file) != $output_stream ]]; then
+						echo -e "\n-----$(realpath $file)-----\n" >> "$output_stream"
+						cat "$file" >> "$output_stream"
+					fi
+				done
+			fi
+		fi
+	done
+	fi
+	# после создания кэш-файла начинаем перебирать его
+	for line in "$(cat $cache_file)"; do
+		if [[ $line == "-----"* ]]; then
+			local DIR_STRING = $line
+		fi
+		local grep_out=$(echo "$line" | grep "$grepper")
+		if [[ $grep_out != "" ]]; then
+			echo "$DIR_STRING" >> "$where_to_write"
+			echo "$grep_out" >> "$where_to_write"
+		fi
+	done
+	echo "Считывал с кэша..."
+}
 cat_r $@
