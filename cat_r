@@ -174,14 +174,19 @@ c_iter() {
 	PREV_IFS=$IFS
 	IFS=$'\n'
 	echo "les go"
+	local RESULT=""
 	for line in $(cat "$cache_file"); do
 		if [[ "$line" == "-----"* ]]; then
-			echo "$line" >> "$where_to_write"
+			#echo "$line" >> "$where_to_write"
+			RESULT="$RESULT\n[${line//-/}]:"
 		fi
 		if [[ "$line" == *"$grepper"* ]]; then
-			echo "$line" >> "$where_to_write"
+			RESULT="$RESULT $line"
+			#echo "$line" >> "$where_to_write"
 		fi
 	done
+	RET=$(echo -e "$RESULT" | grep '^\[.*]: .')
+	echo -e "$RET" >> "$where_to_write" 
 	echo "Считывал с кэша..."
 	IFS=$PREV_IFS
 }
