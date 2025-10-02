@@ -118,7 +118,7 @@ nc_iter() {
 							cat "$file" >> "$output_stream"
 
 						else
-							grep_out=$(cat "$file" | grep -n "$grepper")
+							grep_out=$(grep -n -E "$grepper" "$file")
 
 							if [[ $grep_out != "" ]]; then
 								if [[ $output_stream == "/dev/stdout" ]]; then
